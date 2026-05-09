@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Build and Extract Binary
 
 on:
   push:
@@ -7,12 +7,34 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
+    
     steps:
     - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build and extract binary directly
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        # 关键：使用export模式输出文件
+        outputs: type=local,dest=./output
+        # 如果需要指定架构
+        platforms: linux/arm64
+    
+    - name: List extracted files (调试用)
+      run: |
+        echo "Files in output directory:"
+        ls -la ./output
+        find ./output -type f -executable 2>/dev/null | head -10
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-arm64-binary
+        path: ./output/**/*  # 上传output目录下的所有文件
+        retention-days: 30
